@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Whitelist Creator</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome User!</h1>
+        <button id="toggleForm">+</button>
+
+        <div id="whitelistForm" style="display:none; margin-top: 20px;">
+            <input type="text" id="userID" placeholder="Enter User ID">
+            <input type="number" id="accessTime" placeholder="Access Time (Seconds)">
+            <button onclick="createWhitelist()">Create Whitelist</button>
+            <p id="responseMessage"></p>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('toggleForm').addEventListener('click', () => {
+            const form = document.getElementById('whitelistForm');
+            form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        });
+
+        async function createWhitelist() {
+            const userID = document.getElementById('userID').value;
+            const accessTime = document.getElementById('accessTime').value;
+
+            const response = await fetch('/api/whitelist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `user_id=${userID}&access_time=${accessTime}`
+            });
+
+            const result = await response.json();
+            if (result.status === 'success') {
+                document.getElementById('responseMessage').innerText = 'Whitelist created successfully!';
+            }
+        }
+    </script>
+</body>
+</html>
