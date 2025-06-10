@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Whitelist Creator</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
@@ -11,10 +11,10 @@
         <button id="toggleForm">+</button>
 
         <div id="whitelistForm" style="display:none; margin-top: 20px;">
-            <input type="text" id="userID" placeholder="Enter User ID">
-            <input type="number" id="accessTime" placeholder="Access Time (Seconds)">
+            <input type="text" id="userID" placeholder="Enter User ID" required>
+            <input type="number" id="accessTime" placeholder="Access Time (Seconds)" required>
             <button onclick="createWhitelist()">Create Whitelist</button>
-            <p id="responseMessage"></p>
+            <p id="responseMessage" style="margin-top: 10px;"></p>
         </div>
     </div>
 
@@ -25,18 +25,28 @@
         });
 
         async function createWhitelist() {
-            const userID = document.getElementById('userID').value;
-            const accessTime = document.getElementById('accessTime').value;
+            const userID = document.getElementById('userID').value.trim();
+            const accessTime = document.getElementById('accessTime').value.trim();
+            const responseMsg = document.getElementById('responseMessage');
+
+            if (!userID || !accessTime) {
+                responseMsg.innerText = 'Please enter both User ID and Access Time.';
+                return;
+            }
 
             const response = await fetch('/api/whitelist', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `user_id=${userID}&access_time=${accessTime}`
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded'
+                },
+                body: `user_id=${encodeURIComponent(userID)}&access_time=${encodeURIComponent(accessTime)}`
             });
 
             const result = await response.json();
             if (result.status === 'success') {
-                document.getElementById('responseMessage').innerText = 'Whitelist created successfully!';
+                responseMsg.innerText = '✅ Whitelist created successfully!';
+            } else {
+                responseMsg.innerText = `❌ Error: ${result.message || 'Something went wrong.'}`;
             }
         }
     </script>
