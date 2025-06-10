@@ -1,7 +1,7 @@
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
 from supabase import create_client
-from dateutil import parser  # 🛠 Required for ISO timestamp parsing with Z/UTC
+from dateutil import parser
 import os
 
 app = Flask(__name__)
@@ -15,17 +15,14 @@ supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
 @app.route('/check/<user_id>')
 def check_whitelist(user_id):
     try:
-        # Make sure it's a string for comparison
         user_id = str(user_id)
 
-        # Fetch from Supabase where user_id matches exactly
-        response = supabase_client.table('whitelists').select('*').eq('user_id', user_id).execute()
+        response = supabase_client.table('whitelists').select('*').eq('id', user_id).execute()
 
         if response.data:
             record = response.data[0]
             expire_time = parser.isoparse(record['expire_at'])
 
-            # Check if current time is before the expiration
             if datetime.utcnow() < expire_time:
                 return jsonify({'isWhitelisted': True})
 
@@ -33,7 +30,7 @@ def check_whitelist(user_id):
 
     except Exception as e:
         return jsonify({'error': str(e), 'isWhitelisted': False}), 500
-        
+
 # ✅ Creator Page
 @app.route('/api/creator')
 def creator_page():
@@ -48,6 +45,7 @@ def add_whitelist():
         expire_at = (datetime.utcnow() + timedelta(seconds=access_time)).isoformat()
 
         supabase_client.table('whitelists').insert({
+            'id': user_id,         # 👈 Set id = user_id
             'user_id': user_id,
             'expire_at': expire_at
         }).execute()
