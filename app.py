@@ -1,11 +1,12 @@
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
 from supabase import create_client
+from dateutil import parser  # 🛠 Required for ISO timestamp parsing with Z/UTC
 import os
 
 app = Flask(__name__)
 
-# Supabase setup
+# ✅ Supabase setup
 SUPABASE_URL = os.getenv('SUPABASE_URL')
 SUPABASE_KEY = os.getenv('SUPABASE_KEY')
 supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
@@ -13,15 +14,21 @@ supabase_client = create_client(SUPABASE_URL, SUPABASE_KEY)
 # ✅ Check Whitelist by Roblox UserId
 @app.route('/check/<user_id>')
 def check_whitelist(user_id):
-    # Query by user_id field (text)
-    response = supabase_client.table('whitelists').select('*').eq('user_id', user_id).execute()
+    try:
+        # Get data from Supabase
+        response = supabase_client.table('whitelists').select('*').eq('user_id', user_id).execute()
 
-    if response.data:
-        expire_time = datetime.fromisoformat(response.data[0]['expire_at'])
-        if datetime.utcnow() < expire_time:
-            return jsonify({'isWhitelisted': True})
+        if response.data:
+            record = response.data[0]
+            expire_time = parser.isoparse(record['expire_at'])  # Supports 'Z', timezone info, etc.
 
-    return jsonify({'isWhitelisted': False})
+            if datetime.utcnow() < expire_time:
+                return jsonify({'isWhitelisted': True})
+
+        return jsonify({'isWhitelisted': False})
+    
+    except Exception as e:
+        return jsonify({'error': str(e), 'isWhitelisted': False}), 500
 
 # ✅ Creator Page
 @app.route('/api/creator')
@@ -31,18 +38,20 @@ def creator_page():
 # ✅ Whitelist Creator (POST form)
 @app.route('/api/whitelist', methods=['POST'])
 def add_whitelist():
-    user_id = request.form.get('user_id')  # Roblox UserId
-    access_time = int(request.form.get('access_time'))  # Access time in seconds
+    try:
+        user_id = request.form.get('user_id')
+        access_time = int(request.form.get('access_time'))
+        expire_at = (datetime.utcnow() + timedelta(seconds=access_time)).isoformat()
 
-    expire_at = (datetime.utcnow() + timedelta(seconds=access_time)).isoformat()
+        supabase_client.table('whitelists').insert({
+            'user_id': user_id,
+            'expire_at': expire_at
+        }).execute()
 
-    # Insert with user_id as text
-    supabase_client.table('whitelists').insert({
-        'user_id': user_id,
-        'expire_at': expire_at
-    }).execute()
+        return jsonify({'status': 'success'})
 
-    return {'status': 'success'}
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': str(e)}), 400
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000)
